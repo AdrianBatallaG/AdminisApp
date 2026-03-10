@@ -125,7 +125,7 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'No se pudo reenviar el correo. Verifica configuración SMTP (Brevo), remitente y logs del proveedor.',
+                'message' => 'No se pudo reenviar el correo. Verifica configuración SMTP (Gmail), remitente y logs del proveedor.',
             ], 500);
         }
 
@@ -158,7 +158,7 @@ class AuthController extends Controller
         $fromAddress = (string) config('mail.from.address');
 
         if (in_array($mailer, ['log', 'array'], true)) {
-            return 'La verificación de correo requiere un mailer real (por ejemplo SMTP de Brevo), no MAIL_MAILER=log/array.';
+            return 'La verificación de correo requiere un mailer real (por ejemplo SMTP de Gmail), no MAIL_MAILER=log/array.';
         }
 
         if ($fromAddress === '') {
