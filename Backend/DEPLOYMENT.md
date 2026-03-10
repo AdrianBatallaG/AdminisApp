@@ -22,13 +22,41 @@ Configura estos valores en Render (Environment):
 - `CORS_SUPPORTS_CREDENTIALS=false`
 - `SANCTUM_STATEFUL_DOMAINS=<tu-frontend>.vercel.app`
 
-Si usas previews de Vercel, puedes permitirlos con patron regex:
+### Variables de correo (Gmail SMTP)
 
-- `CORS_ALLOWED_ORIGIN_PATTERNS=^https://.*\\.vercel\\.app$`
+Para que funcione la verificación por correo con Gmail, configura:
+
+- `MAIL_MAILER=smtp`
+- `MAIL_HOST=smtp.gmail.com`
+- `MAIL_PORT=587`
+- `MAIL_SCHEME=tls`
+- `MAIL_USERNAME=<tu_correo_gmail@gmail.com>`
+- `MAIL_PASSWORD=<app_password_de_google_de_16_caracteres>`
+- `MAIL_FROM_ADDRESS=<tu_correo_gmail@gmail.com>`
+- `MAIL_FROM_NAME=<nombre_que_vera_el_usuario>`
+
+> Importante:
+> - Debes usar **App Password** de Google (no la contraseña normal de Gmail).
+> - El `MAIL_FROM_ADDRESS` normalmente debe coincidir con el Gmail autenticado.
+> - Las credenciales SMTP no van en el código; solo en variables de entorno.
+
+### Qué anular/cambiar en Render si venías usando Brevo
+
+- Quita o reemplaza valores antiguos de Brevo:
+  - `MAIL_HOST=smtp-relay.brevo.com`
+  - `MAIL_USERNAME=<usuario_brevo>`
+  - `MAIL_PASSWORD=<clave_brevo>`
+  - `MAIL_FROM_ADDRESS=<dominio_brevo>`
+- Deja únicamente los valores de Gmail SMTP listados arriba.
+- Después de guardar cambios, haz **Manual Deploy** para aplicar variables nuevas.
+
+Si usas previews de Vercel, puedes permitirlos con patrón regex:
+
+- `CORS_ALLOWED_ORIGIN_PATTERNS=^https://.*\.vercel\.app$`
 
 Notas:
 - No agregues slash final en `APP_URL` ni en `CORS_ALLOWED_ORIGINS`.
-- Si cambias variables, haz redeploy para que tome la nueva configuracion.
+- Si cambias variables, haz redeploy para que tome la nueva configuración.
 
 ## 2) Frontend Vite en Vercel
 
@@ -37,27 +65,37 @@ En Vercel, define estas variables:
 - `VITE_API_URL=https://<tu-backend>.onrender.com/api`
 - `VITE_USE_MOCK_AUTH=false`
 
-Este frontend ya incluye `vercel.json` para SPA, evitando 404 al refrescar rutas internas.
-
-## 3) Endpoints de autenticacion
+## 3) Endpoints de autenticación
 
 - `POST /api/register`
 - `POST /api/login`
+- `POST /api/email/resend-verification`
 - `POST /api/logout` (Bearer token)
 - `GET /api/me` (Bearer token)
 
-## 4) Verificacion rapida
+## 4) Flujo de verificación rápida
 
-1. `POST /api/register` responde `201` con `token`.
-2. `POST /api/login` responde `200` con `token`.
-3. `GET /api/me` con Bearer token responde usuario.
-4. Desde Vercel no hay errores CORS en consola del navegador.
+1. `POST /api/register` responde `201` con `requires_email_verification=true`.
+2. Usuario recibe correo y abre el enlace firmado `/email/verify/{id}/{hash}`.
+3. Backend marca el correo como verificado y redirige al frontend `/login?verified=1`.
+4. `POST /api/login` responde `403` si el usuario no verificó correo; responde `200` con token cuando sí está verificado.
 
-## 5) Local (Sail/Docker + Vite)
+## 5) Si no llegan correos con Gmail
 
-Backend:
-- Levanta Sail y ejecuta migraciones.
+Revisa esto en orden:
 
-Frontend:
-- Usa `.env` con `VITE_API_URL=http://localhost:8000/api`.
-- Si quieres login de prueba sin backend, usa `VITE_USE_MOCK_AUTH=true`.
+1. `MAIL_USERNAME` y `MAIL_PASSWORD` (App Password) correctos.
+2. Cuenta Gmail con 2FA activa y App Password vigente.
+3. `MAIL_FROM_ADDRESS` igual al Gmail autenticado.
+4. Spam/Promociones del destinatario.
+5. Logs de Render para errores SMTP.
+
+## 6) Si ves `OPTIONS /api/login` o `OPTIONS /api/register` con 500
+
+Esto casi siempre es configuración CORS inválida en variables de entorno.
+
+Checklist rápido:
+1. `CORS_ALLOWED_ORIGINS` sin slash final (ej: `https://miapp.vercel.app`).
+2. Si usas previews de Vercel, usa `CORS_ALLOWED_ORIGIN_PATTERNS=^https://.*\.vercel\.app$`.
+3. Evita regex con delimitadores extra (`/regex/`) o caracteres sin escapar.
+4. Después de cambiar variables en Render, haz redeploy para refrescar configuración cacheada.

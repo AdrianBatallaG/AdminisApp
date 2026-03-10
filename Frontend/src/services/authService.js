@@ -54,6 +54,17 @@ export const authService = {
     }
   },
 
+
+  resendVerificationEmail: async (email) => {
+    try {
+      const response = await apiClient.post('/email/resend-verification', { email });
+
+      return response.data;
+    } catch (error) {
+      throw new Error(getApiErrorMessage(error, 'No se pudo reenviar el correo de verificación'));
+    }
+  },
+
   getProfile: async () => {
     try {
       const response = await apiClient.get('/me');
