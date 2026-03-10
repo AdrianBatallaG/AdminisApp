@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -25,6 +26,17 @@ class AuthController extends Controller
         }
 
         $user = Auth::user();
+
+        if (! $user->hasVerifiedEmail()) {
+            Auth::logout();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Debes verificar tu correo antes de iniciar sesión.',
+                'requires_email_verification' => true,
+            ], 403);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -50,14 +62,36 @@ class AuthController extends Controller
             'role' => \App\Enums\UserRole::USER,
         ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        event(new Registered($user));
 
         return response()->json([
             'success' => true,
-            'user' => $user,
-            'token' => $token,
-            'token_type' => 'Bearer',
+            'message' => 'Te enviamos un correo para verificar tu cuenta.',
+            'requires_email_verification' => true,
         ], 201);
+    }
+
+    public function resendVerificationEmail(Request $request)
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email', 'exists:users,email'],
+        ]);
+
+        $user = User::where('email', $data['email'])->first();
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Este correo ya fue verificado.',
+            ]);
+        }
+
+        $user->sendEmailVerificationNotification();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Correo de verificación reenviado.',
+        ]);
     }
 
     public function logout(Request $request)

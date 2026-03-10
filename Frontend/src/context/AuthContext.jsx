@@ -160,9 +160,12 @@ export const AuthProvider = ({ children }) => {
 
     try {
       const data = await authService.register(userData);
-      persistAuth(data.user, data.token);
 
-      return { success: true };
+      return {
+        success: true,
+        requiresEmailVerification: Boolean(data.requires_email_verification),
+        message: data.message,
+      };
     } catch (error) {
       return { success: false, error: error.message };
     }
