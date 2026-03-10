@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, Mail, Lock, AlertCircle } from 'lucide-react';
+import { LogIn, Mail, Lock, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -10,6 +10,8 @@ export const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const emailVerified = searchParams.get('verified') === '1';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -39,6 +41,13 @@ export const LoginPage = () => {
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Iniciar Sesión</h1>
           <p className="text-gray-600">Parroquia San Francisco de Asís - Calderón</p>
         </div>
+
+        {emailVerified && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+            <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={20} />
+            <p className="text-sm text-green-800">Correo verificado correctamente. Ya puedes iniciar sesión.</p>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
