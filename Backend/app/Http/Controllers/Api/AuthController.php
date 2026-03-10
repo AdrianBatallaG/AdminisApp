@@ -55,6 +55,13 @@ class AuthController extends Controller
             'password' => ['required', 'min:6'],
         ]);
 
+        if ($configurationError = $this->mailConfigurationError()) {
+            return response()->json([
+                'success' => false,
+                'message' => $configurationError,
+            ], 500);
+        }
+
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
@@ -89,6 +96,13 @@ class AuthController extends Controller
         $data = $request->validate([
             'email' => ['required', 'email', 'exists:users,email'],
         ]);
+
+        if ($configurationError = $this->mailConfigurationError()) {
+            return response()->json([
+                'success' => false,
+                'message' => $configurationError,
+            ], 500);
+        }
 
         $user = User::where('email', $data['email'])->first();
 
@@ -135,5 +149,30 @@ class AuthController extends Controller
         return response()->json([
             'user' => $request->user(),
         ]);
+    }
+
+    private function mailConfigurationError(): ?string
+    {
+        $mailer = (string) config('mail.default');
+        $apiKey = (string) config('services.resend.key');
+        $fromAddress = (string) config('mail.from.address');
+
+        if ($mailer !== 'resend') {
+            return 'La verificación de correo requiere MAIL_MAILER=resend.';
+        }
+
+        if ($apiKey === '' || ! str_starts_with($apiKey, 're_')) {
+            return 'Falta RESEND_API_KEY válida en el backend.';
+        }
+
+        if ($fromAddress === '') {
+            return 'Falta MAIL_FROM_ADDRESS en la configuración del backend.';
+        }
+
+        if (app()->environment('production') && str_ends_with(strtolower($fromAddress), '@resend.dev')) {
+            return 'En producción debes usar un MAIL_FROM_ADDRESS de dominio propio verificado en Resend.';
+        }
+
+        return null;
     }
 }

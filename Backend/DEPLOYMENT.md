@@ -90,4 +90,6 @@ Revisa esto en orden:
 3. **Modo de pruebas de Resend**: con remitentes de prueba (como `onboarding@resend.dev`) la entrega puede estar limitada a correos verificados de tu cuenta.
 4. **Spam / Promociones**: revisa estas bandejas antes de asumir fallo de envío.
 5. **Logs del backend**: si Laravel no pudo enviar, quedará error en logs del servidor (ahora se registran fallos de envío y reenvío).
+6. **Error `restricted_api_key` con `GET /emails/...`**: una API key “send-only” puede enviar correos pero no consultar endpoints de lectura. Ese error no impide el envío desde Laravel; elimina cualquier script externo que haga `GET /emails/*` con esa key o usa otra key con permisos de lectura para ese script.
+7. **Producción**: evita `@resend.dev` como remitente y usa un dominio propio verificado en Resend.
 
