@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { UserPlus, Mail, Lock, User, AlertCircle } from 'lucide-react';
+import { authService } from '../services/authService';
+import { UserPlus, Mail, Lock, User, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 export const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -11,7 +12,9 @@ export const RegisterPage = () => {
     confirmPassword: ''
   });
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendingEmail, setResendingEmail] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -22,11 +25,26 @@ export const RegisterPage = () => {
     });
   };
 
+  const handleResendVerification = async () => {
+    setError('');
+    setSuccessMessage('');
+    setResendingEmail(true);
+
+    try {
+      const data = await authService.resendVerificationEmail(formData.email);
+      setSuccessMessage(data.message || 'Correo de verificación reenviado.');
+    } catch (resendError) {
+      setError(resendError.message || 'No se pudo reenviar el correo de verificación');
+    } finally {
+      setResendingEmail(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
 
-    // Validaciones
     if (formData.password !== formData.confirmPassword) {
       setError('Las contraseñas no coinciden');
       return;
@@ -44,13 +62,19 @@ export const RegisterPage = () => {
       email: formData.email,
       password: formData.password
     });
-    
+
     if (result.success) {
-      navigate('/');
+      if (result.requiresEmailVerification) {
+        setSuccessMessage(
+          result.message || 'Revisa tu correo para verificar tu cuenta antes de iniciar sesión.'
+        );
+      } else {
+        navigate('/');
+      }
     } else {
       setError(result.error || 'Error al registrar usuario');
     }
-    
+
     setLoading(false);
   };
 
@@ -58,9 +82,9 @@ export const RegisterPage = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-blue-100 p-4">
       <div className="card max-w-md w-full">
         <div className="text-center mb-8">
-          <img 
-            src="/images/logo.png" 
-            alt="Parroquia San Francisco de Asís" 
+          <img
+            src="/images/logo.png"
+            alt="Parroquia San Francisco de Asís"
             className="h-24 w-auto mx-auto mb-4"
           />
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Crear Cuenta</h1>
@@ -71,6 +95,23 @@ export const RegisterPage = () => {
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start gap-3">
             <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={20} />
             <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+            <CheckCircle2 className="text-green-600 flex-shrink-0 mt-0.5" size={20} />
+            <div>
+              <p className="text-sm text-green-800">{successMessage}</p>
+              <button
+                type="button"
+                onClick={handleResendVerification}
+                disabled={resendingEmail}
+                className="mt-3 text-sm text-green-700 font-medium underline disabled:opacity-50"
+              >
+                {resendingEmail ? 'Reenviando...' : 'Reenviar correo de verificación'}
+              </button>
+            </div>
           </div>
         )}
 

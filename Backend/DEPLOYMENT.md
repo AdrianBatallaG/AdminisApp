@@ -22,9 +22,26 @@ Configura estos valores en Render (Environment):
 - `CORS_SUPPORTS_CREDENTIALS=false`
 - `SANCTUM_STATEFUL_DOMAINS=<tu-frontend>.vercel.app`
 
+### Variables de correo (Brevo SMTP)
+
+Para que funcione la verificación por correo, agrega también:
+
+- `MAIL_MAILER=smtp`
+- `MAIL_HOST=smtp-relay.brevo.com`
+- `MAIL_PORT=587`
+- `MAIL_USERNAME=<usuario_smtp_brevo>`
+- `MAIL_PASSWORD=<clave_smtp_o_api_key_brevo>`
+- `MAIL_ENCRYPTION=tls` (opcional recomendado)
+- `MAIL_FROM_ADDRESS=<correo_verificado_en_brevo>`
+- `MAIL_FROM_NAME=<nombre_que_vera_el_usuario>`
+
+> Importante:
+> - Las credenciales SMTP no van en el código. Solo en variables de entorno (`.env` local, Render, etc.).
+> - `MAIL_FROM_ADDRESS` debe existir y estar validado/autorizado en tu cuenta de Brevo.
+
 Si usas previews de Vercel, puedes permitirlos con patron regex:
 
-- `CORS_ALLOWED_ORIGIN_PATTERNS=^https://.*\\.vercel\\.app$`
+- `CORS_ALLOWED_ORIGIN_PATTERNS=^https://.*\.vercel\.app$`
 
 Notas:
 - No agregues slash final en `APP_URL` ni en `CORS_ALLOWED_ORIGINS`.
@@ -37,27 +54,27 @@ En Vercel, define estas variables:
 - `VITE_API_URL=https://<tu-backend>.onrender.com/api`
 - `VITE_USE_MOCK_AUTH=false`
 
-Este frontend ya incluye `vercel.json` para SPA, evitando 404 al refrescar rutas internas.
-
 ## 3) Endpoints de autenticacion
 
 - `POST /api/register`
 - `POST /api/login`
+- `POST /api/email/resend-verification`
 - `POST /api/logout` (Bearer token)
 - `GET /api/me` (Bearer token)
 
-## 4) Verificacion rapida
+## 4) Flujo de verificacion rapida
 
-1. `POST /api/register` responde `201` con `token`.
-2. `POST /api/login` responde `200` con `token`.
-3. `GET /api/me` con Bearer token responde usuario.
-4. Desde Vercel no hay errores CORS en consola del navegador.
+1. `POST /api/register` responde `201` con `requires_email_verification=true`.
+2. Usuario recibe correo y abre el enlace firmado `/email/verify/{id}/{hash}`.
+3. Backend marca el correo como verificado y redirige al frontend `/login?verified=1`.
+4. `POST /api/login` responde `403` si el usuario no verificó correo; responde `200` con token cuando sí está verificado.
 
-## 5) Local (Sail/Docker + Vite)
+## 5) Si no llegan correos con Brevo
 
-Backend:
-- Levanta Sail y ejecuta migraciones.
+Revisa esto en orden:
 
-Frontend:
-- Usa `.env` con `VITE_API_URL=http://localhost:8000/api`.
-- Si quieres login de prueba sin backend, usa `VITE_USE_MOCK_AUTH=true`.
+1. Credenciales SMTP (`MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`).
+2. `MAIL_FROM_ADDRESS` válido y autorizado en Brevo.
+3. Actividad en Brevo (logs/eventos) para ver si entrega, rebote o bloqueo.
+4. Carpeta Spam/Promociones en el correo destino.
+5. Logs del backend para errores al enviar/reenviar verificación.
