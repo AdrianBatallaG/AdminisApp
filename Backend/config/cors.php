@@ -6,15 +6,31 @@ $defaultOrigins = array_filter([
     'http://127.0.0.1:5173',
 ]);
 
-$allowedOrigins = array_values(array_filter(array_map(
-    static fn (string $origin): string => rtrim(trim($origin), '/'),
-    explode(',', (string) env('CORS_ALLOWED_ORIGINS', implode(',', $defaultOrigins)))
-)));
+$normalizeCsv = static function (string $value): array {
+    return array_values(array_filter(array_map(
+        static fn (string $item): string => rtrim(trim($item), '/'),
+        explode(',', $value)
+    )));
+};
 
-$allowedOriginPatterns = array_values(array_filter(array_map(
+$allowedOrigins = $normalizeCsv((string) env('CORS_ALLOWED_ORIGINS', implode(',', $defaultOrigins)));
+
+$rawPatterns = array_values(array_filter(array_map(
     static fn (string $pattern): string => trim($pattern),
     explode(',', (string) env('CORS_ALLOWED_ORIGIN_PATTERNS', ''))
 )));
+
+$allowedOriginPatterns = array_values(array_filter($rawPatterns, static function (string $pattern): bool {
+    if ($pattern === '') {
+        return false;
+    }
+
+    return @preg_match('/'.$pattern.'/', 'https://example.com') !== false;
+}));
+
+if (empty($allowedOriginPatterns) && app()->environment('production')) {
+    $allowedOriginPatterns = ['^https://.*\.vercel\.app$'];
+}
 
 return [
 

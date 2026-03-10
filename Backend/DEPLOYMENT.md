@@ -78,3 +78,14 @@ Revisa esto en orden:
 3. Actividad en Brevo (logs/eventos) para ver si entrega, rebote o bloqueo.
 4. Carpeta Spam/Promociones en el correo destino.
 5. Logs del backend para errores al enviar/reenviar verificación.
+
+## 6) Si ves `OPTIONS /api/login` o `OPTIONS /api/register` con 500
+
+Esto casi siempre es configuración CORS inválida en variables de entorno.
+
+Checklist rápido:
+1. `CORS_ALLOWED_ORIGINS` sin slash final (ej: `https://miapp.vercel.app`).
+2. Si usas previews de Vercel, usa `CORS_ALLOWED_ORIGIN_PATTERNS=^https://.*\.vercel\.app$`.
+3. Evita regex con delimitadores extra (`/regex/`) o caracteres sin escapar.
+4. Después de cambiar variables en Render, haz redeploy para refrescar configuración cacheada.
+
