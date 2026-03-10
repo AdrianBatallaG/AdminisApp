@@ -8,6 +8,7 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 
 class AuthController extends Controller
 {
@@ -55,6 +56,13 @@ class AuthController extends Controller
             'password' => ['required', 'min:6'],
         ]);
 
+        if ($configurationError = $this->mailConfigurationError()) {
+            return response()->json([
+                'success' => false,
+                'message' => $configurationError,
+            ], 500);
+        }
+
         $user = User::create([
             'name' => $data['name'],
             'email' => $data['email'],
@@ -62,11 +70,24 @@ class AuthController extends Controller
             'role' => \App\Enums\UserRole::USER,
         ]);
 
-        event(new Registered($user));
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Throwable $exception) {
+            Log::error('No se pudo enviar correo de verificación al registrar usuario.', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo enviar el correo de verificación. Revisa la configuración de Resend y vuelve a intentarlo.',
+            ], 500);
+        }
 
         return response()->json([
             'success' => true,
-            'message' => 'Te enviamos un correo para verificar tu cuenta.',
+            'message' => 'Te enviamos un correo para verificar tu cuenta. Si no llega, revisa spam/promociones o solicita reenvío.',
             'requires_email_verification' => true,
         ], 201);
     }
@@ -77,6 +98,13 @@ class AuthController extends Controller
             'email' => ['required', 'email', 'exists:users,email'],
         ]);
 
+        if ($configurationError = $this->mailConfigurationError()) {
+            return response()->json([
+                'success' => false,
+                'message' => $configurationError,
+            ], 500);
+        }
+
         $user = User::where('email', $data['email'])->first();
 
         if ($user->hasVerifiedEmail()) {
@@ -86,7 +114,20 @@ class AuthController extends Controller
             ]);
         }
 
-        $user->sendEmailVerificationNotification();
+        try {
+            $user->sendEmailVerificationNotification();
+        } catch (\Throwable $exception) {
+            Log::error('No se pudo reenviar correo de verificación.', [
+                'user_id' => $user->id,
+                'email' => $user->email,
+                'error' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo reenviar el correo. Verifica RESEND_API_KEY, remitente y actividad en Resend.',
+            ], 500);
+        }
 
         return response()->json([
             'success' => true,
@@ -109,5 +150,30 @@ class AuthController extends Controller
         return response()->json([
             'user' => $request->user(),
         ]);
+    }
+
+    private function mailConfigurationError(): ?string
+    {
+        $mailer = (string) config('mail.default');
+        $apiKey = (string) config('services.resend.key');
+        $fromAddress = (string) config('mail.from.address');
+
+        if ($mailer !== 'resend') {
+            return 'La verificación de correo requiere MAIL_MAILER=resend.';
+        }
+
+        if ($apiKey === '' || ! str_starts_with($apiKey, 're_')) {
+            return 'Falta RESEND_API_KEY válida en el backend.';
+        }
+
+        if ($fromAddress === '') {
+            return 'Falta MAIL_FROM_ADDRESS en la configuración del backend.';
+        }
+
+        if (app()->environment('production') && str_ends_with(strtolower($fromAddress), '@resend.dev')) {
+            return 'En producción debes usar un MAIL_FROM_ADDRESS de dominio propio verificado en Resend.';
+        }
+
+        return null;
     }
 }
