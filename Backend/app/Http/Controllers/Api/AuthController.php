@@ -81,7 +81,7 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'No se pudo enviar el correo de verificación. Revisa la configuración de Resend y vuelve a intentarlo.',
+                'message' => 'No se pudo enviar el correo de verificación. Revisa la configuración de correo transaccional y vuelve a intentarlo.',
             ], 500);
         }
 
@@ -125,7 +125,7 @@ class AuthController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'No se pudo reenviar el correo. Verifica RESEND_API_KEY, remitente y actividad en Resend.',
+                'message' => 'No se pudo reenviar el correo. Verifica configuración SMTP (Brevo), remitente y logs del proveedor.',
             ], 500);
         }
 
@@ -155,23 +155,24 @@ class AuthController extends Controller
     private function mailConfigurationError(): ?string
     {
         $mailer = (string) config('mail.default');
-        $apiKey = (string) config('services.resend.key');
         $fromAddress = (string) config('mail.from.address');
 
-        if ($mailer !== 'resend') {
-            return 'La verificación de correo requiere MAIL_MAILER=resend.';
-        }
-
-        if ($apiKey === '' || ! str_starts_with($apiKey, 're_')) {
-            return 'Falta RESEND_API_KEY válida en el backend.';
+        if (in_array($mailer, ['log', 'array'], true)) {
+            return 'La verificación de correo requiere un mailer real (por ejemplo SMTP de Brevo), no MAIL_MAILER=log/array.';
         }
 
         if ($fromAddress === '') {
             return 'Falta MAIL_FROM_ADDRESS en la configuración del backend.';
         }
 
-        if (app()->environment('production') && str_ends_with(strtolower($fromAddress), '@resend.dev')) {
-            return 'En producción debes usar un MAIL_FROM_ADDRESS de dominio propio verificado en Resend.';
+        if ($mailer === 'smtp') {
+            $host = (string) config('mail.mailers.smtp.host');
+            $username = (string) config('mail.mailers.smtp.username');
+            $password = (string) config('mail.mailers.smtp.password');
+
+            if ($host === '' || $username === '' || $password === '') {
+                return 'Faltan datos SMTP para enviar correos (MAIL_HOST, MAIL_USERNAME o MAIL_PASSWORD).';
+            }
         }
 
         return null;
